@@ -1,4 +1,4 @@
-package enwei;
+
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -77,7 +77,31 @@ public class ServerAuthentication {
 		this.s = s;
 		this.k = k;
 	}
-
+	
+	public boolean NOPROTOCOL(InputStream in, OutputStream out) {
+		// Verify Protocol
+		byte[] protocol = ByteBuffer.allocate(4).putInt(0).array();
+		try {
+			out.write(protocol);
+			out.flush();
+		} catch (IOException e) {
+			System.err.println("Unable to send protocol confirmation.");
+			e.printStackTrace();
+			return false;
+		}
+		byte[] verifyProtocol = new byte[4];
+		try {
+			in.read(verifyProtocol);
+		} catch (IOException e2) {
+			System.err.println("Unable to receive protocol confirmation.");
+			e2.printStackTrace();
+		}
+		if (ByteBuffer.wrap(verifyProtocol).getInt() != 0) {
+			System.err.println("Protocol mismatch.");
+			return false;
+		}
+		return true;
+	}
 	/**
 	 * The 1st protocol.
 	 * 
