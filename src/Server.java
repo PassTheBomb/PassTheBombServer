@@ -22,7 +22,17 @@ public class Server {
 
 	static final int PLAYERS_PER_GAME = 4;
 	private PROTOCAL protocal;
+	private Security s;
+	private Keys k;
 	
+	protected Security getS() {
+		return s;
+	}
+
+	protected Keys getK() {
+		return k;
+	}
+
 	public Server(PROTOCAL protocal) {
 		this.protocal = protocal;
 	}
@@ -73,7 +83,7 @@ public class Server {
 				if (this.protocal == PROTOCAL.NOPROTOCAL || this.protocal == PROTOCAL.T2) {
 					clientManager = new Thread(new UnSecureClientManager(copyOfClientSockets));
 				} else {
-					clientManager = new Thread(new SecureClientManager(copyOfClientSockets));
+					clientManager = new Thread(new SecureClientManager(copyOfClientSockets, this));
 				}
 				//Thread clientManager = new Thread(new ClientManager(copyOfClientSockets));
 				System.out.println("Manager thread created.");
@@ -90,8 +100,13 @@ public class Server {
 	}
 	
 	private boolean verificaiton(Socket socket) throws IOException {
-		Security s = new Security();
-		Keys k = new Keys();
+		if (s == null) {
+			s = new Security();
+		} 
+		if (k == null) {
+			k = new Keys();
+		}
+		
 		k.generateRSAKeyPair();
 		
 		InputStream in = socket.getInputStream();
@@ -246,31 +261,42 @@ class UnSecureClientManager extends ClientManager {
 class SecureClientManager extends ClientManager {
 
 	private LinkedList<Socket> clientSockets;
-	private LinkedList<BufferedReader> inputFromClients;
-	private LinkedList<PrintWriter> outputToClients;
+//	private LinkedList<BufferedReader> inputFromClients;
+//	private LinkedList<PrintWriter> outputToClients;
+	private LinkedList<InputStream> ins;
+	private LinkedList<OutputStream> outs;
+	
 	private int size;
 	private int bombTimer; 
 	private int bombHolder;
 	private boolean[] bombList = new boolean[Server.PLAYERS_PER_GAME];
+	private Security security;
+	private Keys keys;
 
-	public SecureClientManager(LinkedList<Socket> clients) {
+	public SecureClientManager(LinkedList<Socket> clients, Server server) {
 		clientSockets = clients;
-		inputFromClients = new LinkedList<BufferedReader>();
-		outputToClients = new LinkedList<PrintWriter>();
+//		inputFromClients = new LinkedList<BufferedReader>();
+//		outputToClients = new LinkedList<PrintWriter>();
 		size = Server.PLAYERS_PER_GAME;
+		security = server.getS();
+		keys = server.getK();
+		ins = new LinkedList<InputStream>();
+		outs = new LinkedList<OutputStream>();
 
 		// Set bomb timer to 60sec.
 		bombTimer = 10000;
 
 		try {
 			for (Socket s : clientSockets) {
-				inputFromClients.add(
+				/*inputFromClients.add(
 						new BufferedReader(
 								new InputStreamReader(s.getInputStream()) ));
 
 				// Set the second param of the PrintWriter constructor to true
 				// to enable AUTO-FLUSHING.
-				outputToClients.add(new PrintWriter(s.getOutputStream(), true));
+				outputToClients.add(new PrintWriter(s.getOutputStream(), true));*/
+				ins.add(s.getInputStream());
+				outs.add(s.getOutputStream());
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -289,10 +315,14 @@ class SecureClientManager extends ClientManager {
 			
 			// Inform client of their id and who is the bomb holder. 
 			for (int i = 0; i < size; i++) {
-				inputFromClients.get(i).readLine();
+				//TODO decrypt 
+				//inputFromClients.get(i).readLine();
+				MsgHandler.acquireNetworkMsg(ins.get(i));
 				
+				//TODO encrypt
 				String initInfo = i + ";0,312,512," + bombList[0] + ";1,412,512," + bombList[1] + ";2,712,512," + bombList[2] + ";3,612,512," + bombList[3];
-				outputToClients.get(i).println(initInfo);
+				//outputToClients.get(i).println(initInfo);
+				outs.get(i).write(security.encrypt(initInfo.getBytes(), keys.getDESKey(), "DES"));
 			}
 
 			long startTime = System.currentTimeMillis();
@@ -301,13 +331,15 @@ class SecureClientManager extends ClientManager {
 			while (true) {
 				for (int i = 0; i < size; i++) {
 					
+					//TODO .avaliable
 					// Is the buffer ready to be read? If not, I'll check the next buffer.
-					if (inputFromClients.get(i).ready()) {
-						
+					//if (inputFromClients.get(i).ready()) {
+					if(ins.get(i).available() > 0) {	
 						/* Receive: 
 						 * 	"id, x_coordinate, y_coordinate, bomb_from, bomb_to" */
-						String in = inputFromClients.get(i).readLine();
-						//System.out.println(in);
+						//Get byte and decrypt
+						//String in = inputFromClients.get(i).readLine();
+						String in = new String(security.decrypt(MsgHandler.acquireNetworkMsg(ins.get(i)), keys.getDESKey(), "DES"));
 						String input[] = in.split(",");
 						
 						
@@ -320,8 +352,11 @@ class SecureClientManager extends ClientManager {
 						//To-Do: Must handle collision checker. "Handshake" the collision
 						
 						// Transmit to all other clients.
+						//TODO encrypt and send out
 						for (int j = 0; j < size; j++) {
-							outputToClients.get(j).println(input[0]+","+input[1]+","+input[2]+","+bombList[i]);
+							//outputToClients.get(j).println(input[0]+","+input[1]+","+input[2]+","+bombList[i]);
+							String msg = input[0]+","+input[1]+","+input[2]+","+bombList[i];
+							outs.get(i).write(security.encrypt(msg.getBytes(), keys.getDESKey(), "DES"));
 						}
 					}
 				}
@@ -335,13 +370,16 @@ class SecureClientManager extends ClientManager {
 			
 			// Inform all clients that the bomb has exploded.
 			for (int i = 0; i < size; i++) {
-				outputToClients.get(i).println("Exploded");
+				//TODO ddddd
+				//outputToClients.get(i).println("Exploded");
+				String msg = "Exploded";
+				outs.get(i).write(security.encrypt(msg.getBytes(), keys.getDESKey(), "DES"));
 			}
 			
 			// Perform clean up logic.
 			for (int i = 0; i < size; i++) {
-				outputToClients.get(i).close();
-				inputFromClients.get(i).close();
+				/*outputToClients.get(i).close();
+				inputFromClients.get(i).close();*/
 				clientSockets.get(i).close();
 			}
 			
