@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Random;
 
+import android.R.integer;
+
 
 /**
  * Constantly listens for new client connections.
@@ -283,8 +285,12 @@ class SecureClientManager extends ClientManager {
 		ins = new LinkedList<InputStream>();
 		outs = new LinkedList<OutputStream>();
 
-		// Set bomb timer to 60sec.
-		bombTimer = 10000;
+		// Set a random timer.
+		Random randomExtraTime = new Random();
+		int baseTime = 30000;
+		int extraTime = 1000*randomExtraTime.nextInt(10);
+		
+		bombTimer = baseTime + extraTime;
 
 		try {
 			for (Socket s : clientSockets) {
