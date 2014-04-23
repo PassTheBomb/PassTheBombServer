@@ -1,8 +1,9 @@
 
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+
+import org.apache.commons.codec.binary.Base64;
 
 /**
  * Contains static methods that facilitate the conversion of messages that are
@@ -19,9 +20,10 @@ public class MsgHandler {
 	 * @return the byte encoded transferable and receivable network message
 	 */
 	public static byte[] createNetworkMsg(byte[] encodedMsg) {
-		ByteBuffer byteBuffer = ByteBuffer.allocate(encodedMsg.length + 4);
-		byteBuffer.putInt(encodedMsg.length);
-		byteBuffer.put(encodedMsg);
+		byte[] baseEncode = Base64.encodeBase64(encodedMsg);
+		ByteBuffer byteBuffer = ByteBuffer.allocate(baseEncode.length + 4);
+		byteBuffer.putInt(baseEncode.length);
+		byteBuffer.put(baseEncode);
 		return byteBuffer.array();
 	}
 
@@ -38,8 +40,8 @@ public class MsgHandler {
 	public static byte[] acquireNetworkMsg(InputStream in) throws IOException {
 		byte[] byteArray = new byte[4];
 		in.read(byteArray, 0, 4);
-		byteArray = new byte[ByteBuffer.wrap(byteArray).getInt()];
-		in.read(byteArray);
-		return byteArray;
+		byte[] array = new byte[ByteBuffer.wrap(byteArray).getInt()];
+		in.read(array);
+		return Base64.decodeBase64(array);
 	}
 }
