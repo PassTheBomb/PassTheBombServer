@@ -157,8 +157,13 @@ class UnSecureClientManager extends ClientManager {
 		outputToClients = new LinkedList<PrintWriter>();
 		size = Server.PLAYERS_PER_GAME;
 
-		// Set bomb timer to 60sec.
-		bombTimer = 10000;
+
+		// Set a random timer.
+		Random randomExtraTime = new Random();
+		int baseTime = 30000;
+		int extraTime = 1000*randomExtraTime.nextInt(10);
+		
+		bombTimer = baseTime + extraTime;
 
 		try {
 			for (Socket s : clientSockets) {
@@ -235,7 +240,8 @@ class UnSecureClientManager extends ClientManager {
 			for (int i = 0; i < size; i++) {
 				outputToClients.get(i).println("Exploded");
 			}
-			
+
+			Thread.sleep(5000);
 			// Perform clean up logic.
 			for (int i = 0; i < size; i++) {
 				outputToClients.get(i).close();
@@ -360,7 +366,7 @@ class SecureClientManager extends ClientManager {
 				outs.get(i).write(MsgHandler.createNetworkMsg(security.encrypt(msg.getBytes(), keys.getDESKey(), "DES")));
 				outs.get(i).flush();
 			}
-			
+			Thread.sleep(5000);
 			// Perform clean up logic.
 			for (int i = 0; i < size; i++) {
 				clientSockets.get(i).close();
