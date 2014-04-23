@@ -78,7 +78,15 @@ public class Security {
 			ciphertext = RSAcipher.doFinal(plaintext);
 		} else if (format == "DES") {
 			DEScipher.init(Cipher.ENCRYPT_MODE, k);
-			ciphertext = DEScipher.doFinal(plaintext);
+			try {
+				ciphertext = DEScipher.doFinal(plaintext);
+			} catch (BadPaddingException e) {
+				System.out.println("Plain text: " + plaintext.length);
+				e.printStackTrace();
+			} catch (IllegalBlockSizeException e) {
+				System.out.println("Plain text: " + plaintext.length);
+				e.printStackTrace();
+			}
 		} else {
 			throw new IllegalArgumentException();
 		}
@@ -116,7 +124,15 @@ public class Security {
 			plaintext = RSAcipher.doFinal(ciphertext);
 		} else if (format == "DES") {
 			DEScipher.init(Cipher.DECRYPT_MODE, k);
-			plaintext = DEScipher.doFinal(ciphertext);
+			try {
+				plaintext = DEScipher.doFinal(ciphertext);
+			} catch (BadPaddingException e) {
+				System.out.println("Cipher text " + ciphertext.length);
+				e.printStackTrace();
+			} catch (IllegalBlockSizeException e) {
+				System.out.println("Cipher text " + ciphertext.length);
+				e.printStackTrace();
+			}
 		} else {
 			throw new IllegalArgumentException();
 		}

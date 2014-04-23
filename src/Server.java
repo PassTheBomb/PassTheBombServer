@@ -36,12 +36,8 @@ public class Server {
 
 	public Server(PROTOCAL protocal) {
 		this.protocal = protocal;
-		if (s == null) {
-			s = new Security();
-		} 
-		if (k == null) {
-			k = new Keys();
-		}
+		s = new Security();
+		k = new Keys();
 		
 		k.generateRSAKeyPair();
 		k.generateDESKey();
@@ -327,27 +323,27 @@ class SecureClientManager extends ClientManager {
 					
 					//TODO
 					// Is the buffer ready to be read? If not, I'll check the next buffer.
-					if(ins.get(i).available() > 0) {	
-						/* Receive: 
-						 * 	"id, x_coordinate, y_coordinate, bomb_from, bomb_to" */
-						String in = new String(security.decrypt(MsgHandler.acquireNetworkMsg(ins.get(i)), keys.getDESKey(), "DES"));
-						String input[] = in.split(",");
-						
-						int collidedPlayerNo = Integer.parseInt(input[3]);
-						boolean carryBomb = Boolean.parseBoolean(input[4]);
-						if (collidedPlayerNo != -1 && carryBomb && carryBomb == bombList[i] && bombList[collidedPlayerNo] == false){
-							bombList[i] = false;
-							bombList[collidedPlayerNo] = true;
-						}
-						
-						// Transmit to all other clients.
-						//TODO
-						for (int j = 0; j < size; j++) {
-							String msg = input[0]+","+input[1]+","+input[2]+","+bombList[i];
-							outs.get(j).write(MsgHandler.createNetworkMsg(security.encrypt(msg.getBytes(), keys.getDESKey(), "DES")));
-							outs.get(j).flush();
-						}
+					//if(ins.get(i).available() > 0) {	
+					/* Receive: 
+					 * 	"id, x_coordinate, y_coordinate, bomb_from, bomb_to" */
+					String in = new String(security.decrypt(MsgHandler.acquireNetworkMsg(ins.get(i)), keys.getDESKey(), "DES"));
+					String input[] = in.split(",");
+					
+					int collidedPlayerNo = Integer.parseInt(input[3]);
+					boolean carryBomb = Boolean.parseBoolean(input[4]);
+					if (collidedPlayerNo != -1 && carryBomb && carryBomb == bombList[i] && bombList[collidedPlayerNo] == false){
+						bombList[i] = false;
+						bombList[collidedPlayerNo] = true;
 					}
+					
+					// Transmit to all other clients.
+					//TODO
+					for (int j = 0; j < size; j++) {
+						String msg = input[0]+","+input[1]+","+input[2]+","+bombList[i];
+						outs.get(j).write(MsgHandler.createNetworkMsg(security.encrypt(msg.getBytes(), keys.getDESKey(), "DES")));
+						outs.get(j).flush();
+					}
+					//}
 				}
 
 				// Periodically check if bomb has expired then exit loop.
