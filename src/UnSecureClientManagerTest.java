@@ -85,8 +85,9 @@ public class UnSecureClientManagerTest extends ClientManager {
 					posList, bombList, countDown);
 			LinkedList<PlayerListener> playerListenerList = new LinkedList<PlayerListener>();
 			for (int i = 0; i < 4; i++) {
-				playerListenerList.add(new PlayerListener(inputFromClients
-						.get(i), i, posList, bombList, bomb,countDown));
+				playerListenerList.add(new PlayerListener(clientSockets.get(i),
+						inputFromClients.get(i), i, posList, bombList, bomb,
+						countDown));
 			}
 			broadcast.start();
 			for (int i = 0; i < 4; i++) {
@@ -106,7 +107,11 @@ public class UnSecureClientManagerTest extends ClientManager {
 			System.out.println("Cleaning Up");
 			for (int i = 0; i < size; i++) {
 				inputFromClients.get(i).close();
+			}
+			for (int i = 0; i < size; i++) {
 				outputToClients.get(i).close();
+			}
+			for (int i = 0; i < size; i++) {
 				clientSockets.get(i).close();
 			}
 
@@ -118,6 +123,7 @@ public class UnSecureClientManagerTest extends ClientManager {
 }
 
 class PlayerListener extends Thread {
+	private Socket socket;
 	private BufferedReader in;
 	private int id;
 	private float[][] posList;
@@ -126,7 +132,7 @@ class PlayerListener extends Thread {
 	private Bomb bomb;
 	private CountDownLatch countDown;
 
-	PlayerListener(BufferedReader in, int id, float[][] posList,
+	PlayerListener(Socket socket, BufferedReader in, int id, float[][] posList,
 			boolean[] bombList, Bomb bomb, CountDownLatch countDown) {
 		this.in = in;
 		this.id = id;
@@ -135,6 +141,7 @@ class PlayerListener extends Thread {
 		this.active = true;
 		this.bomb = bomb;
 		this.countDown = countDown;
+		this.socket = socket;
 	}
 
 	@Override
@@ -147,33 +154,41 @@ class PlayerListener extends Thread {
 			 * Receive: "id, x_coordinate, y_coordinate, bomb_from, bomb_to"
 			 */
 			String input = null;
-			try {
-				input = in.readLine();
-			} catch (IOException e) {
-			}
-			if (!bomb.getPassable()) {
-				if (System.currentTimeMillis() - bomb.getBombPassTime() > 1000) {
-					bomb.enablePassable();
+			if (!socket.isClosed()){
+				try {
+					input = in.readLine();
+				} catch (IOException e) {
+				}
+				if (!bomb.getPassable()) {
+					if (System.currentTimeMillis() - bomb.getBombPassTime() > 1000) {
+						bomb.enablePassable();
+					}
+				}
+				// System.out.println(in);
+				if (input == null){
+				}
+				else if (input.contentEquals("Terminated") ) {
+					countDown.countDown();
+				}
+				else{
+					String splitInput[] = input.split(",");
+					posList[id][0] = Float.parseFloat(splitInput[1]);
+					posList[id][1] = Float.parseFloat(splitInput[2]);
+					int collidedPlayerNo = Integer.parseInt(splitInput[3]);
+					boolean carryBomb = Boolean.parseBoolean(splitInput[4]);
+					if (collidedPlayerNo != -1 && carryBomb
+							&& carryBomb == bombList[id]
+							&& !bombList[collidedPlayerNo] && bomb.getPassable()) {
+						bomb.disablePassable();
+						bomb.setBombPassTime();
+						bombList[id] = false;
+						bombList[collidedPlayerNo] = true;
+	
+					}
 				}
 			}
-			// System.out.println(in);
-			if (input != null && !input.contentEquals("Terminated")) {
-				String splitInput[] = input.split(",");
-				posList[id][0] = Float.parseFloat(splitInput[1]);
-				posList[id][1] = Float.parseFloat(splitInput[2]);
-				int collidedPlayerNo = Integer.parseInt(splitInput[3]);
-				boolean carryBomb = Boolean.parseBoolean(splitInput[4]);
-				if (collidedPlayerNo != -1 && carryBomb
-						&& carryBomb == bombList[id]
-						&& !bombList[collidedPlayerNo] && bomb.getPassable()) {
-					bomb.disablePassable();
-					bomb.setBombPassTime();
-					bombList[id] = false;
-					bombList[collidedPlayerNo] = true;
+			else{
 
-				}
-			}
-			else if (input != null && input.contentEquals("Terminated")){
 				countDown.countDown();
 			}
 		}
@@ -225,18 +240,18 @@ class BroadcastThread extends Thread {
 			}
 		}
 
-		
 		System.out.println("Exploded");
 		for (PrintWriter out : outList) {
 			System.out.println("Printing...");
 			out.println("Exploded");
 		}
-		try {
-			countDown.await();
-		} catch (InterruptedException e) {
-			System.out.println("Countdown interrupted");
-			e.printStackTrace();
-		}
+
+		//try {
+			//countDown.await();
+		//} catch (InterruptedException e) {
+		//	System.err.println("Countdown Interrupted");
+		//	e.printStackTrace();
+		//}
 		synchronized (this) {
 			this.notifyAll();
 		}
