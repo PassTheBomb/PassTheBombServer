@@ -165,6 +165,12 @@ class PlayerListener extends Thread {
 				}
 			}
 		}
+		try {
+			in.close();
+		} catch (IOException e) {
+			System.err.println("Unable to close BufferedReader on Listener");
+			e.printStackTrace();
+		}
 	}
 
 	public void deactivate() {
@@ -206,11 +212,13 @@ class BroadcastThread extends Thread {
 		}
 		for (PrintWriter out : outList){
 			out.println("Exploded");
+			out.close();
 		}
 		
 		synchronized(this){
 			this.notifyAll();
 		}
+		
 	}
 
 	public void deactivate() {
