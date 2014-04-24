@@ -89,7 +89,7 @@ public class Server {
 				// Pass the clientSockets to the clientManager.
 				Thread clientManager;
 				if (this.protocal == PROTOCAL.NOPROTOCAL || this.protocal == PROTOCAL.T2) {
-					clientManager = new Thread(new UnSecureClientManager(copyOfClientSockets));
+					clientManager = new Thread(new UnSecureClientManagerTest(copyOfClientSockets));
 				} else {
 					clientManager = new Thread(new SecureClientManager(copyOfClientSockets, this));
 				}
