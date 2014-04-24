@@ -25,7 +25,12 @@ public class UnSecureClientManagerTest extends ClientManager {
 		size = Server.PLAYERS_PER_GAME;
 
 		// Set bomb timer to 60sec.
-		bombTimer = 10000;
+		// Set a random timer.
+		Random randomExtraTime = new Random();
+		int baseTime = 30000;
+		int extraTime = 1000*randomExtraTime.nextInt(10);
+				
+		bombTimer = baseTime + extraTime;
 
 		// Set bomb carrier
 		for (int i = 0; i < Server.PLAYERS_PER_GAME; i++) {
