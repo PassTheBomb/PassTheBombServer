@@ -58,6 +58,7 @@ public class UnSecureClientManagerTest extends ClientManager {
 			e.printStackTrace();
 		}
 	}
+
 	@Override
 	public void run() {
 		try {
@@ -72,8 +73,9 @@ public class UnSecureClientManagerTest extends ClientManager {
 			}
 
 			// long startTime = System.currentTimeMillis();
+
 			BroadcastThread broadcast = new BroadcastThread(outputToClients,
-					posList, bombList, Thread.currentThread());
+					posList, bombList);
 			LinkedList<PlayerListener> playerListenerList = new LinkedList<PlayerListener>();
 			for (int i = 0; i < 4; i++) {
 				playerListenerList.add(new PlayerListener(inputFromClients
@@ -83,18 +85,17 @@ public class UnSecureClientManagerTest extends ClientManager {
 			for (int i = 0; i < 4; i++) {
 				playerListenerList.get(i).start();
 			}
-			synchronized(this){
-				try{
-					this.wait();
-				}
-				catch (Exception e){
-					
-				}
-			}
+			Thread.sleep(bombTimer);
+
+
 			for (int i = 0; i < size; i++) {
 				playerListenerList.get(i).deactivate();
 			}
 			// Inform all clients that the bomb has exploded.
+			synchronized(broadcast){
+				broadcast.deactivate();
+				broadcast.wait();
+			}
 			// Perform clean up logic.
 			for (int i = 0; i < size; i++) {
 				outputToClients.get(i).close();
@@ -146,6 +147,7 @@ class PlayerListener extends Thread {
 					bomb.enablePassable();
 				}
 			}
+			// System.out.println(in);
 			if (input != null) {
 				String splitInput[] = input.split(",");
 				posList[id][0] = Float.parseFloat(splitInput[1]);
@@ -169,7 +171,6 @@ class PlayerListener extends Thread {
 			System.err.println("Unable to close BufferedReader on Listener");
 			e.printStackTrace();
 		}
-
 	}
 
 	public void deactivate() {
@@ -182,21 +183,17 @@ class BroadcastThread extends Thread {
 	private float[][] posList;
 	private boolean[] bombList;
 	private boolean active;
-	private Thread parentThread;
 
 	BroadcastThread(LinkedList<PrintWriter> outList, float[][] posList,
-			boolean[] bombList, Thread thread) {
+			boolean[] bombList) {
 		this.outList = outList;
 		this.posList = posList;
 		this.bombList = bombList;
 		this.active = true;
-		this.parentThread = thread;
 	}
 
 	@Override
 	public void run() {
-		long bombTimer = 10000;
-		long startTime = System.currentTimeMillis();
 		while (active) {
 			boolean[] bombListCpy;
 			bombListCpy = bombList.clone();
@@ -207,25 +204,20 @@ class BroadcastThread extends Thread {
 				}
 			}
 			try {
-				Thread.currentThread().sleep(16);
+				Thread.sleep(16);
 			} catch (InterruptedException e) {
 				System.err.println("Failed to sleep");
 				e.printStackTrace();
-			}
-			if (System.currentTimeMillis() - startTime >= bombTimer) {
-				break;
 			}
 		}
 		for (PrintWriter out : outList){
 			out.println("Exploded");
 			out.close();
 		}
-
+		
 		synchronized(this){
 			this.notifyAll();
 		}
-		
-		parentThread.interrupt();
 		
 	}
 
