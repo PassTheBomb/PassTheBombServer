@@ -5,6 +5,7 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.LinkedList;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 
 public class UnSecureClientManagerTest extends ClientManager {
 
@@ -17,6 +18,7 @@ public class UnSecureClientManagerTest extends ClientManager {
 	private boolean[] bombList = new boolean[Server.PLAYERS_PER_GAME];
 	private float[][] posList = new float[Server.PLAYERS_PER_GAME][2];
 	private Bomb bomb = new Bomb();
+	private CountDownLatch countDown = new CountDownLatch(4);
 
 	public UnSecureClientManagerTest(LinkedList<Socket> clients) {
 		clientSockets = clients;
@@ -28,8 +30,8 @@ public class UnSecureClientManagerTest extends ClientManager {
 		// Set a random timer.
 		Random randomExtraTime = new Random();
 		int baseTime = 30000;
-		int extraTime = 1000*randomExtraTime.nextInt(10);
-				
+		int extraTime = 1000 * randomExtraTime.nextInt(10);
+
 		bombTimer = baseTime + extraTime;
 
 		// Set bomb carrier
@@ -80,11 +82,11 @@ public class UnSecureClientManagerTest extends ClientManager {
 			// long startTime = System.currentTimeMillis();
 
 			BroadcastThread broadcast = new BroadcastThread(outputToClients,
-					posList, bombList);
+					posList, bombList, countDown);
 			LinkedList<PlayerListener> playerListenerList = new LinkedList<PlayerListener>();
 			for (int i = 0; i < 4; i++) {
 				playerListenerList.add(new PlayerListener(inputFromClients
-						.get(i), i, posList, bombList, bomb));
+						.get(i), i, posList, bombList, bomb,countDown));
 			}
 			broadcast.start();
 			for (int i = 0; i < 4; i++) {
@@ -92,19 +94,19 @@ public class UnSecureClientManagerTest extends ClientManager {
 			}
 			Thread.sleep(bombTimer);
 
-
 			for (int i = 0; i < size; i++) {
 				playerListenerList.get(i).deactivate();
 			}
 			// Inform all clients that the bomb has exploded.
-			synchronized(broadcast){
+			synchronized (broadcast) {
 				broadcast.deactivate();
 				broadcast.wait();
 			}
 			// Perform clean up logic.
+			System.out.println("Cleaning Up");
 			for (int i = 0; i < size; i++) {
-				outputToClients.get(i).close();
 				inputFromClients.get(i).close();
+				outputToClients.get(i).close();
 				clientSockets.get(i).close();
 			}
 
@@ -122,15 +124,17 @@ class PlayerListener extends Thread {
 	private boolean[] bombList;
 	private boolean active;
 	private Bomb bomb;
+	private CountDownLatch countDown;
 
 	PlayerListener(BufferedReader in, int id, float[][] posList,
-			boolean[] bombList, Bomb bomb) {
+			boolean[] bombList, Bomb bomb, CountDownLatch countDown) {
 		this.in = in;
 		this.id = id;
 		this.posList = posList;
 		this.bombList = bombList;
 		this.active = true;
 		this.bomb = bomb;
+		this.countDown = countDown;
 	}
 
 	@Override
@@ -147,13 +151,13 @@ class PlayerListener extends Thread {
 				input = in.readLine();
 			} catch (IOException e) {
 			}
-			if (!bomb.getPassable()){
-				if (System.currentTimeMillis() - bomb.getBombPassTime() > 1000){
+			if (!bomb.getPassable()) {
+				if (System.currentTimeMillis() - bomb.getBombPassTime() > 1000) {
 					bomb.enablePassable();
 				}
 			}
 			// System.out.println(in);
-			if (input != null) {
+			if (input != null && !input.contentEquals("Terminated")) {
 				String splitInput[] = input.split(",");
 				posList[id][0] = Float.parseFloat(splitInput[1]);
 				posList[id][1] = Float.parseFloat(splitInput[2]);
@@ -166,8 +170,11 @@ class PlayerListener extends Thread {
 					bomb.setBombPassTime();
 					bombList[id] = false;
 					bombList[collidedPlayerNo] = true;
-					
+
 				}
+			}
+			else if (input != null && input.contentEquals("Terminated")){
+				countDown.countDown();
 			}
 		}
 		try {
@@ -188,13 +195,15 @@ class BroadcastThread extends Thread {
 	private float[][] posList;
 	private boolean[] bombList;
 	private boolean active;
+	private CountDownLatch countDown;
 
 	BroadcastThread(LinkedList<PrintWriter> outList, float[][] posList,
-			boolean[] bombList) {
+			boolean[] bombList, CountDownLatch countDown) {
 		this.outList = outList;
 		this.posList = posList;
 		this.bombList = bombList;
 		this.active = true;
+		this.countDown = countDown;
 	}
 
 	@Override
@@ -215,15 +224,24 @@ class BroadcastThread extends Thread {
 				e.printStackTrace();
 			}
 		}
-		for (PrintWriter out : outList){
-			out.println("Exploded");
-			out.close();
-		}
+
 		
-		synchronized(this){
+		System.out.println("Exploded");
+		for (PrintWriter out : outList) {
+			System.out.println("Printing...");
+			out.println("Exploded");
+		}
+		try {
+			countDown.await();
+		} catch (InterruptedException e) {
+			System.out.println("Countdown interrupted");
+			e.printStackTrace();
+		}
+		synchronized (this) {
 			this.notifyAll();
 		}
-		
+
+		System.out.println("Broadcast Ended");
 	}
 
 	public void deactivate() {
@@ -231,23 +249,30 @@ class BroadcastThread extends Thread {
 	}
 }
 
-class Bomb{
+class Bomb {
 	private boolean passable = true;
 	private long bombPassTime = 0;
-	Bomb(){}
-	public synchronized void disablePassable(){
+
+	Bomb() {
+	}
+
+	public synchronized void disablePassable() {
 		passable = false;
 	}
-	public synchronized void enablePassable(){
+
+	public synchronized void enablePassable() {
 		passable = true;
 	}
-	public synchronized boolean getPassable(){
+
+	public synchronized boolean getPassable() {
 		return passable;
 	}
-	public synchronized void setBombPassTime(){
+
+	public synchronized void setBombPassTime() {
 		bombPassTime = System.currentTimeMillis();
 	}
-	public synchronized long getBombPassTime(){
+
+	public synchronized long getBombPassTime() {
 		return bombPassTime;
 	}
 }
