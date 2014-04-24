@@ -2,14 +2,6 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
-	<classpathentry kind="lib" path="/Developer/adt-bundle-mac-x86_64-20130917/sdk/platforms/android-17/android.jar" sourcepath="/Developer/adt-bundle-mac-x86_64-20130917/sdk/sources/android-17">
-		<attributes>
-			<attribute name="javadoc_location" value="file:/Developer/adt-bundle-mac-x86_64-20130917/sdk/docs/reference"/>
-		</attributes>
-		<accessrules>
-			<accessrule kind="nonaccessible" pattern="com/android/internal/**"/>
-		</accessrules>
-	</classpathentry>
-	<classpathentry kind="lib" path="/Users/liuweilong/Downloads/org-apache-commons-codec.jar"/>
+	<classpathentry kind="lib" path="libs/org-apache-commons-codec.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
