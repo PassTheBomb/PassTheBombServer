@@ -87,13 +87,14 @@ public class UnSecureClientManagerTest extends ClientManager {
 			}
 			Thread.sleep(bombTimer);
 
-			// Inform all clients that the bomb has exploded.
-			for (int i = 0; i < size; i++) {
-				outputToClients.get(i).println("Exploded");
-			}
-			broadcast.deactivate();
+
 			for (int i = 0; i < size; i++) {
 				playerListenerList.get(i).deactivate();
+			}
+			// Inform all clients that the bomb has exploded.
+			synchronized(broadcast){
+				broadcast.deactivate();
+				broadcast.wait();
 			}
 			// Perform clean up logic.
 			for (int i = 0; i < size; i++) {
@@ -196,6 +197,19 @@ class BroadcastThread extends Thread {
 							+ "," + bombListCpy[i]);
 				}
 			}
+			try {
+				Thread.sleep(16);
+			} catch (InterruptedException e) {
+				System.err.println("Failed to sleep");
+				e.printStackTrace();
+			}
+		}
+		for (PrintWriter out : outList){
+			out.println("Exploded");
+		}
+		
+		synchronized(this){
+			this.notifyAll();
 		}
 	}
 
