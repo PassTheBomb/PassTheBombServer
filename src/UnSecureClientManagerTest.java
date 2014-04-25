@@ -29,7 +29,7 @@ public class UnSecureClientManagerTest extends ClientManager {
 		// Set bomb timer to 60sec.
 		// Set a random timer.
 		Random randomExtraTime = new Random();
-		int baseTime = 30000;
+		int baseTime = 5000;
 		int extraTime = 1000 * randomExtraTime.nextInt(10);
 
 		bombTimer = baseTime + extraTime;
@@ -95,14 +95,18 @@ public class UnSecureClientManagerTest extends ClientManager {
 			}
 			Thread.sleep(bombTimer);
 
+			// Inform all clients that the bomb has exploded.
+			broadcast.sendExplodeMsg();
+
+			countDown.await();
+			
+			
+
+			broadcast.deactivate();
 			for (int i = 0; i < size; i++) {
 				playerListenerList.get(i).deactivate();
 			}
-			// Inform all clients that the bomb has exploded.
-			synchronized (broadcast) {
-				broadcast.deactivate();
-				broadcast.wait();
-			}
+			
 			// Perform clean up logic.
 			System.out.println("Cleaning Up");
 			for (int i = 0; i < size; i++) {
@@ -155,6 +159,7 @@ class PlayerListener extends Thread {
 			 */
 			String input = null;
 			if (!socket.isClosed()){
+				System.out.println("Socket is not closed");
 				try {
 					input = in.readLine();
 				} catch (IOException e) {
@@ -168,6 +173,7 @@ class PlayerListener extends Thread {
 				if (input == null){
 				}
 				else if (input.contentEquals("Terminated") ) {
+					System.out.println("CountDown");
 					countDown.countDown();
 				}
 				else{
@@ -188,7 +194,7 @@ class PlayerListener extends Thread {
 				}
 			}
 			else{
-
+				System.out.println("CountDown from Socket Closure");
 				countDown.countDown();
 			}
 		}
@@ -211,6 +217,7 @@ class BroadcastThread extends Thread {
 	private boolean[] bombList;
 	private boolean active;
 	private CountDownLatch countDown;
+	private boolean signaling;
 
 	BroadcastThread(LinkedList<PrintWriter> outList, float[][] posList,
 			boolean[] bombList, CountDownLatch countDown) {
@@ -218,6 +225,7 @@ class BroadcastThread extends Thread {
 		this.posList = posList;
 		this.bombList = bombList;
 		this.active = true;
+		this.signaling = true;
 		this.countDown = countDown;
 	}
 
@@ -241,9 +249,11 @@ class BroadcastThread extends Thread {
 		}
 
 		System.out.println("Exploded");
-		for (PrintWriter out : outList) {
-			System.out.println("Printing...");
-			out.println("Exploded");
+		while (signaling){
+			//System.out.println("Printing...");
+			for (PrintWriter out : outList) {
+				out.println("Exploded");
+			}
 		}
 
 		//try {
@@ -252,14 +262,14 @@ class BroadcastThread extends Thread {
 		//	System.err.println("Countdown Interrupted");
 		//	e.printStackTrace();
 		//}
-		synchronized (this) {
-			this.notifyAll();
-		}
 
 		System.out.println("Broadcast Ended");
 	}
 
 	public void deactivate() {
+		signaling = false;
+	}
+	public void sendExplodeMsg(){
 		active = false;
 	}
 }
