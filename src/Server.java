@@ -50,7 +50,6 @@ public class Server {
 		
 		System.out.println("Server started");
 		
-		// Suppress warning that serverSocket is never closed.
 		ServerSocket serverSocket = new ServerSocket(5432);
 		LinkedList<Socket> clientSockets = new LinkedList<Socket>();
 		ArrayList<PrintWriter> outArrayList = new ArrayList<PrintWriter>();
@@ -89,7 +88,7 @@ public class Server {
 				// Pass the clientSockets to the clientManager.
 				Thread clientManager;
 				if (this.protocal == PROTOCAL.NOPROTOCAL || this.protocal == PROTOCAL.T2) {
-					clientManager = new Thread(new UnSecureClientManagerTest(copyOfClientSockets));
+					clientManager = new Thread(new UnSecureClientManagerII(copyOfClientSockets));
 				} else {
 					clientManager = new Thread(new SecureClientManager(copyOfClientSockets, this));
 				}
@@ -210,7 +209,6 @@ class UnSecureClientManager extends ClientManager {
 						/* Receive: 
 						 * 	"id, x_coordinate, y_coordinate, bomb_from, bomb_to" */
 						String in = inputFromClients.get(i).readLine();
-						//System.out.println(in);
 						String input[] = in.split(",");
 						
 						
@@ -220,7 +218,6 @@ class UnSecureClientManager extends ClientManager {
 							bombList[i] = false;
 							bombList[collidedPlayerNo] = true;
 						}
-						//To-Do: Must handle collision checker. "Handshake" the collision
 						
 						// Transmit to all other clients.
 						for (int j = 0; j < size; j++) {
@@ -312,10 +309,8 @@ class SecureClientManager extends ClientManager {
 			
 			// Inform client of their id and who is the bomb holder. 
 			for (int i = 0; i < size; i++) {
-				//TODO 
 				MsgHandler.acquireNetworkMsg(ins.get(i));
 				
-				//TODO
 				String initInfo = i + ";0,312,512," + bombList[0] + ";1,412,512," + bombList[1] + ";2,712,512," + bombList[2] + ";3,612,512," + bombList[3];
 				outs.get(i).write(MsgHandler.createNetworkMsg(security.encrypt(initInfo.getBytes(), keys.getDESKey(), "DES")));
 				outs.get(i).flush();
@@ -327,11 +322,9 @@ class SecureClientManager extends ClientManager {
 			while (true) {
 				for (int i = 0; i < size; i++) {
 					
-					//TODO
 					// Is the buffer ready to be read? If not, I'll check the next buffer.
-					//if(ins.get(i).available() > 0) {	
 					/* Receive: 
-					 * 	"id, x_coordinate, y_coordinate, bomb_from, bomb_to" */
+					 * 	"id, x_coordinate, y_coordinate, collidedPlayer, bombState" */
 					String in = new String(security.decrypt(MsgHandler.acquireNetworkMsg(ins.get(i)), keys.getDESKey(), "DES"));
 					String input[] = in.split(",");
 					
@@ -343,13 +336,11 @@ class SecureClientManager extends ClientManager {
 					}
 					
 					// Transmit to all other clients.
-					//TODO
 					for (int j = 0; j < size; j++) {
 						String msg = input[0]+","+input[1]+","+input[2]+","+bombList[i];
 						outs.get(j).write(MsgHandler.createNetworkMsg(security.encrypt(msg.getBytes(), keys.getDESKey(), "DES")));
 						outs.get(j).flush();
 					}
-					//}
 				}
 
 				// Periodically check if bomb has expired then exit loop.
@@ -361,7 +352,6 @@ class SecureClientManager extends ClientManager {
 			
 			// Inform all clients that the bomb has exploded.
 			for (int i = 0; i < size; i++) {
-				//TODO
 				String msg = "Exploded";
 				outs.get(i).write(MsgHandler.createNetworkMsg(security.encrypt(msg.getBytes(), keys.getDESKey(), "DES")));
 				outs.get(i).flush();
